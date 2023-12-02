@@ -6,35 +6,65 @@ module Communicable
   end
 end
 
-class Board
-  attr_accessor :size
+module GridIndexable
+  def col_indexes(side_length)
+    grid_cols = []
+    col_index = 1
 
-  def initialize(grid_n = 3)
-    @size = grid_n
-    @squares = (grid_n**2).times.with_object([]) { |i, obj| obj << Square.new((i + 1), size) }
+    until col_index > side_length
+      col_indexes = []
+      current_index = col_index
+      until col_indexes.size == side_length
+        col_indexes << current_index
+        current_index += side_length
+      end
+      grid_cols << col_indexes
+      col_index += 1
+    end
+    grid_cols
   end
 
-  def display
-    squares.each_slice(size) { |row| draw_row(row) }
+  def row_indexes(side_length)
+    grid_rows = []
+    (1..(side_length**2)).each_slice(side_length) {|row| grid_rows << row}
+    grid_rows
   end
 
-  def draw_row(subarr)
-    puts subarr.map(&:to_s).join
+  def diagonal_indexes(side_length)
+    tl_br = (0...side_length).map { |row_i| (row_i * side_length) + (row_i + 1) }
+    tr_bl = (0...side_length).map { |row_i| side_length + (2 * row_i) }
+    [tl_br, tr_bl]
   end
-
-  def update(token, index)
-    squares[index - 1].update_shape(token)
-  end
-
-  def valid_choice?(index)
-    (1..(size**2)).include?(index)
-  end
-
-  private
-
-  attr_accessor :squares
 end
+      
+      
+    # for each col_i in (0...side_length)
+    #   for each row_i in (0...side_length)
+    #   square_i = (row_i * side_length) + (1 + col_i)
 
+    # indexes = []
+    # (0...side_length).each do |col_i|
+    #   (0...side_length).map { |row_i| (row_i * board.size) +  1 }
+
+  # PEDAC
+  # method should return true or false
+  # method will need to access state of collections of squares with a length of board size
+  # collections will represent rows, collumns and diagonals
+  # HOW TO BUILD ROWS COLS AND DIAGS
+    # ROWS: each slice of length board size gives you each row
+    # COLS: for each col `col_i` each square has an index equal to the product of the row index (start 0) and board size) + (1 + col_i)OR
+          #  each square has an index equal to the prodcut of the row index (start 1) and board size) - (board size - 1)
+    # DIAG:  
+      # Top left - bottom right: (row index * board size ) + row index + 1 
+      # each square has and index equal to the row index (start 1) * board size) - (board size - row index)
+      # Top right- bottom left: board size + (2 * distance from first row i.e row index (start 0))
+
+      # 1 0
+      # 5 1
+      # 9 2
+
+
+  
 class Square
   attr_reader :index, :token
 
@@ -58,13 +88,23 @@ class Square
     shape.clone
   end
 
+  def update_token(token)
+    @token = token
+    update_shape(token)
+  end
+
+  def available?
+    # binding.pry
+    token.nil?
+  end
+  
+  private
+  
+  attr_reader :shape
+  
   def update_shape(token)
     shape[1] = token
   end
-
-  private
-
-  attr_reader :shape
 end
 
 class Player
@@ -90,13 +130,52 @@ class Human < Player
     choice = nil
     loop do
       choice = gets.chomp
-      break if board.valid_choice?(choice.to_i)
-      msg "Input must be an interger 1..#{board.size**2}"
+      choice = choice.to_i - 1 # correct for indexing at 0
+      break if board.available_moves.include?(choice)
+      msg "Input must be an unmarked square 1..#{board.size**2}"
     end
-    choice.to_i
+    choice
   end
 end
 
+class Board
+  attr_accessor :size
+
+  include GridIndexable
+
+  def initialize(grid_n = 3)
+    @size = grid_n
+    @squares = (grid_n**2).times.with_object([]) { |i, obj| obj << Square.new((i + 1), size) }
+  end
+
+  def display
+    squares.each_slice(size) { |row| draw_row(row) }
+  end
+
+  def draw_row(subarr)
+    puts subarr.map(&:to_s).join
+  end
+
+  def update(token, index)
+    squares[index].update_token(token)
+  end
+
+  # def valid_choice?(index)
+  #   (0...(size**2)).include?(index) && squares[index].available?
+  # end
+
+  def full?
+    available_moves.empty?
+  end
+
+  def available_moves
+    squares.filter_map.with_index { |sq, i| i if sq.token.nil? }
+  end
+
+  private
+
+  attr_accessor :squares
+end
 
 class TTTGame
   attr_reader :board, :human, :computer
@@ -118,16 +197,27 @@ class TTTGame
     board.update(human.marker, human.choose_square(board))
   end
 
+  def someone_won?
+    false
+  end
+
+  def display_result
+    msg "This is where I will display a result:  "
+  end
+
+  def display_goodbye_message
+    msg "Thank you for playing. Goodbye!"
+  end
+
   def play
     display_welcome_message
     loop do
       board.display
       first_player_moves
-      board.display
-      break if someone_won? || board_full?
+      break if someone_won? || board.full?
 
-      second_player_moves
-      break if someone_won? || board_full?
+      # second_player_moves
+      # break if someone_won? || board.full?
     end
     display_result
     display_goodbye_message
