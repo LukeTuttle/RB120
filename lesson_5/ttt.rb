@@ -21,50 +21,26 @@ module GridIndexable
       grid_cols << col_indexes
       col_index += 1
     end
-    grid_cols
+    grid_cols.map {|arr| decrement_1(arr)}
   end
 
   def row_indexes(side_length)
     grid_rows = []
     (1..(side_length**2)).each_slice(side_length) {|row| grid_rows << row}
-    grid_rows
+    grid_rows.map {|arr| decrement_1(arr)}
   end
 
   def diagonal_indexes(side_length)
     tl_br = (0...side_length).map { |row_i| (row_i * side_length) + (row_i + 1) }
     tr_bl = (0...side_length).map { |row_i| side_length + (2 * row_i) }
-    [tl_br, tr_bl]
+    [tl_br, tr_bl].map {|arr| decrement_1(arr)}
+  end
+
+  def decrement_1(arr)
+    arr.map {|el| el - 1}
   end
 end
-      
-      
-    # for each col_i in (0...side_length)
-    #   for each row_i in (0...side_length)
-    #   square_i = (row_i * side_length) + (1 + col_i)
 
-    # indexes = []
-    # (0...side_length).each do |col_i|
-    #   (0...side_length).map { |row_i| (row_i * board.size) +  1 }
-
-  # PEDAC
-  # method should return true or false
-  # method will need to access state of collections of squares with a length of board size
-  # collections will represent rows, collumns and diagonals
-  # HOW TO BUILD ROWS COLS AND DIAGS
-    # ROWS: each slice of length board size gives you each row
-    # COLS: for each col `col_i` each square has an index equal to the product of the row index (start 0) and board size) + (1 + col_i)OR
-          #  each square has an index equal to the prodcut of the row index (start 1) and board size) - (board size - 1)
-    # DIAG:  
-      # Top left - bottom right: (row index * board size ) + row index + 1 
-      # each square has and index equal to the row index (start 1) * board size) - (board size - row index)
-      # Top right- bottom left: board size + (2 * distance from first row i.e row index (start 0))
-
-      # 1 0
-      # 5 1
-      # 9 2
-
-
-  
 class Square
   attr_reader :index, :token
 
@@ -94,33 +70,25 @@ class Square
   end
 
   def available?
-    # binding.pry
     token.nil?
   end
-  
+
   private
-  
+
   attr_reader :shape
-  
+
   def update_shape(token)
     shape[1] = token
   end
 end
 
 class Player
-  attr_reader :name
+  attr_reader :name, :marker
 
   include Communicable
-
-  def initialize
-  end
-
-  def mark
-  end
 end
 
 class Human < Player
-  attr_reader :marker
   def initialize
     @name = "User"
     @marker = 'X'
@@ -135,6 +103,17 @@ class Human < Player
       msg "Input must be an unmarked square 1..#{board.size**2}"
     end
     choice
+  end
+end
+
+class Computer < Player
+  def initialize
+    @name = 'Robo'
+    @marker = 'O'
+  end
+
+  def choose_square(board)
+    board.available_moves.sample
   end
 end
 
@@ -160,16 +139,27 @@ class Board
     squares[index].update_token(token)
   end
 
-  # def valid_choice?(index)
-  #   (0...(size**2)).include?(index) && squares[index].available?
-  # end
-
   def full?
     available_moves.empty?
   end
 
   def available_moves
     squares.filter_map.with_index { |sq, i| i if sq.token.nil? }
+  end
+
+  def winner?(token)
+    all_sequences = [row_indexes(size), col_indexes(size), diagonal_indexes(size)]
+
+    all_sequences.any? do |sequence_set_indexes|
+      sequence_set_indexes.any? do |sequence_indexes|
+        sequence = squares.values_at(*sequence_indexes).map(&:token)
+        winning_sequence?(token, sequence)
+      end
+    end
+  end
+
+  def winning_sequence?(token, sequence)
+    sequence.all? { |sq| sq == token }
   end
 
   private
@@ -182,10 +172,10 @@ class TTTGame
 
   include Communicable
 
-  def initialize
-    @board = Board.new
+  def initialize(grid_row_length = 3)
+    @board = Board.new(grid_row_length)
     @human = Human.new
-    # @computer = Computer.new
+    @computer = Computer.new
   end
 
   def display_welcome_message
@@ -194,15 +184,27 @@ class TTTGame
 
   def first_player_moves
     msg "#{human.name} it's your turn, choose a square"
-    board.update(human.marker, human.choose_square(board))
+    choice = human.choose_square(board)
+    board.update(human.marker, choice)
+  end
+
+  def second_player_moves
+    choice = computer.choose_square(board)
+    board.update(computer.marker, choice)
+    msg "#{computer.name} chose square #{choice + 1}!"
+    sleep 0.5
   end
 
   def someone_won?
+    return human if board.winner?(human.marker) 
+    return computer if board.winner?(computer.marker)
     false
   end
 
   def display_result
-    msg "This is where I will display a result:  "
+    board.display
+    return msg "#{someone_won?.name} won!" unless board.full?
+    msg "No winner! Board is full!"
   end
 
   def display_goodbye_message
@@ -216,18 +218,12 @@ class TTTGame
       first_player_moves
       break if someone_won? || board.full?
 
-      # second_player_moves
-      # break if someone_won? || board.full?
+      second_player_moves
+      break if someone_won? || board.full?
     end
     display_result
     display_goodbye_message
   end
 end
 
-
-
-# my_board = Board.new(3)
-# my_board.squares[0].update_shape('X')
-# my_board.display
-game = TTTGame.new
-game.play
+TTTGame.new.play
