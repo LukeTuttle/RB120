@@ -1,0 +1,59 @@
+tic tac toe is a two player game with alternating turns taken by each player
+to mark a square with a game piece on a 3x3 grid/board. The first person who achieves placement
+of 3 of the pieces all in a line, wins.
+
+
+Nouns:
+player
+turn
+board
+piece
+game
+
+Verbs:
+win
+mark
+take turn
+
+
+Organize:
+Board
+Square
+Player
+ - mark
+ - play
+
+
+ Spike:
+
+class Board
+  def initialize
+    # need a way to model the grid
+    # need a way to keep track of the state of each square in the grid
+    
+    # what data structures should we use?
+      # - array/hash of Square objects?
+      # - array/ hash of strings or intergers? 
+  end
+end
+
+class Square
+  def initialize
+    # maybe a status which tracks which piece or players piece 
+       #it has been marked with, or if it is empty?
+    # ability to draw itself?
+  end
+end
+
+class Player
+  def initialize
+    # maybe a 'marker' or 'token' which can be placed on a board square?
+  end
+
+  def mark
+  end
+
+  def play
+
+  end
+end
